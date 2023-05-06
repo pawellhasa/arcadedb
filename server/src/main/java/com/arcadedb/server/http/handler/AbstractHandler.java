@@ -40,6 +40,7 @@ import io.undertow.server.HttpHandler;
 import io.undertow.server.HttpServerExchange;
 import io.undertow.util.HeaderValues;
 import io.undertow.util.Headers;
+import io.undertow.util.HttpString;
 
 import java.util.*;
 import java.util.logging.*;
@@ -83,6 +84,10 @@ public abstract class AbstractHandler implements HttpHandler {
 
     try {
       LogManager.instance().setContext(httpServer.getServer().getServerName());
+
+      final String cors = httpServer.getServer().getConfiguration().getValueAsString(GlobalConfiguration.SERVER_HTTP_CORS);
+      if (cors != null)
+        exchange.getResponseHeaders().put(new HttpString("Access-Control-Allow-Origin"), cors);
 
       exchange.getResponseHeaders().put(Headers.CONTENT_TYPE, "application/json");
 
