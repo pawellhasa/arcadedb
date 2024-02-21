@@ -41,6 +41,7 @@ public class CreateEdgeExecutionPlanner {
   protected final Expression leftExpression;
   protected final Expression rightExpression;
   protected final boolean    unidirectional;
+  protected final boolean    lightweight;
   protected final boolean    ifNotExists;
   protected final InsertBody body;
 
@@ -50,6 +51,7 @@ public class CreateEdgeExecutionPlanner {
     this.leftExpression = statement.getLeftExpression() == null ? null : statement.getLeftExpression().copy();
     this.rightExpression = statement.getRightExpression() == null ? null : statement.getRightExpression().copy();
     this.unidirectional = statement.isUnidirectional();
+    this.lightweight = statement.isLightweight();
     this.ifNotExists = statement.ifNotExists();
     this.body = statement.getBody() == null ? null : statement.getBody().copy();
 
@@ -95,7 +97,7 @@ public class CreateEdgeExecutionPlanner {
 
     result.chain(
         new CreateEdgesStep(targetClass, targetBucketName, uniqueIndexName, new Identifier("$__ARCADEDB_CREATE_EDGE_fromV"),
-            new Identifier("$__ARCADEDB_CREATE_EDGE_toV"), unidirectional, ifNotExists, context, enableProfiling));
+            new Identifier("$__ARCADEDB_CREATE_EDGE_toV"), unidirectional, lightweight, ifNotExists, context, enableProfiling));
 
     handleSetFields(result, body, context, enableProfiling);
     handleSave(result, targetBucketName, context, enableProfiling);

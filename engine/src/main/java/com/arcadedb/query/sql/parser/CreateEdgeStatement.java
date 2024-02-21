@@ -37,6 +37,7 @@ public class CreateEdgeStatement extends Statement {
   protected InsertBody body;
   protected boolean    ifNotExists;
   protected boolean    unidirectional = false;
+  protected boolean    lightweight    = false;
 
   public CreateEdgeStatement(final int id) {
     super(id);
@@ -92,6 +93,9 @@ public class CreateEdgeStatement extends Statement {
     if (unidirectional)
       builder.append(" UNIDIRECTIONAL");
 
+    if (lightweight)
+      builder.append(" LIGHTWEIGHT");
+
     if (ifNotExists)
       builder.append(" IF NOT EXISTS");
 
@@ -110,13 +114,15 @@ public class CreateEdgeStatement extends Statement {
     result.rightExpression = rightExpression == null ? null : rightExpression.copy();
     result.ifNotExists = ifNotExists;
     result.unidirectional = unidirectional;
+    result.lightweight = lightweight;
     result.body = body == null ? null : body.copy();
     return result;
   }
 
   @Override
   protected Object[] getIdentityElements() {
-    return new Object[] { targetType, targetBucketName, leftExpression, rightExpression, unidirectional, ifNotExists, body };
+    return new Object[] { targetType, targetBucketName, leftExpression, rightExpression, unidirectional, lightweight, ifNotExists,
+        body };
   }
 
   public Identifier getTargetType() {
@@ -141,6 +147,10 @@ public class CreateEdgeStatement extends Statement {
 
   public boolean isUnidirectional() {
     return unidirectional;
+  }
+
+  public boolean isLightweight() {
+    return lightweight;
   }
 
   public InsertBody getBody() {

@@ -25,6 +25,7 @@ import com.arcadedb.database.RID;
 import com.arcadedb.exception.CommandExecutionException;
 import com.arcadedb.exception.TimeoutException;
 import com.arcadedb.graph.Edge;
+import com.arcadedb.graph.LightEdge;
 import com.arcadedb.graph.MutableEdge;
 import com.arcadedb.graph.Vertex;
 import com.arcadedb.graph.VertexInternal;
@@ -46,6 +47,7 @@ public class CreateEdgesStep extends AbstractExecutionStep {
   private final Identifier  toAlias;
   private final boolean     ifNotExists;
   private final boolean     unidirectional;
+  private final boolean     lightweight;
   // operation stuff
   private       Iterator    fromIter;
   private       Iterator    toIterator;
@@ -59,7 +61,8 @@ public class CreateEdgesStep extends AbstractExecutionStep {
   private boolean initiated = false;
 
   public CreateEdgesStep(final Identifier targetClass, final Identifier targetBucketName, final String uniqueIndex,
-      final Identifier fromAlias, final Identifier toAlias, final boolean unidirectional, final boolean ifNotExists,
+      final Identifier fromAlias, final Identifier toAlias, final boolean unidirectional, final boolean lightweight,
+      final boolean ifNotExists,
       final CommandContext context, final boolean profilingEnabled) {
     super(context, profilingEnabled);
     this.targetClass = targetClass;
@@ -68,6 +71,7 @@ public class CreateEdgesStep extends AbstractExecutionStep {
     this.fromAlias = fromAlias;
     this.toAlias = toAlias;
     this.unidirectional = unidirectional;
+    this.lightweight = lightweight;
     this.ifNotExists = ifNotExists;
   }
 
@@ -111,10 +115,15 @@ public class CreateEdgesStep extends AbstractExecutionStep {
 
           final String target = targetBucket != null ? "bucket:" + targetBucket.getStringValue() : targetClass.getStringValue();
 
-          final MutableEdge edge =
-              edgeToUpdate != null ? edgeToUpdate : currentFrom.newEdge(target, currentTo, !unidirectional, properties);
-
-          final UpdatableResult result = new UpdatableResult(edge);
+          final ResultInternal result;
+          if (lightweight) {
+            final LightEdge edge = currentFrom.newLightEdge(target, currentTo, !unidirectional);
+            result = new ResultInternal(edge);
+          } else {
+            final MutableEdge edge =
+                edgeToUpdate != null ? edgeToUpdate : currentFrom.newEdge(target, currentTo, !unidirectional, properties);
+            result = new UpdatableResult(edge);
+          }
           currentTo = null;
           currentBatch++;
           return result;
@@ -289,6 +298,6 @@ public class CreateEdgesStep extends AbstractExecutionStep {
   public ExecutionStep copy(final CommandContext context) {
     return new CreateEdgesStep(targetClass == null ? null : targetClass.copy(), targetBucket == null ? null : targetBucket.copy(),
         uniqueIndexName, fromAlias == null ? null : fromAlias.copy(), toAlias == null ? null : toAlias.copy(), unidirectional,
-        ifNotExists, context, profilingEnabled);
+        lightweight, ifNotExists, context, profilingEnabled);
   }
 }

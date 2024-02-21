@@ -98,7 +98,6 @@ public class BasicGraphTest extends BaseGraphTest {
   }
 
   @Test
-  //TODO
   public void autoPersistLightWeightEdge() {
     database.begin();
     try {

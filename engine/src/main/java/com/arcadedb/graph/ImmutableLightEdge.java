@@ -22,6 +22,7 @@ import com.arcadedb.database.Database;
 import com.arcadedb.database.ImmutableDocument;
 import com.arcadedb.database.RID;
 import com.arcadedb.schema.DocumentType;
+import com.arcadedb.schema.EdgeType;
 import com.arcadedb.serializer.json.JSONObject;
 
 import java.util.*;
@@ -42,7 +43,15 @@ public class ImmutableLightEdge extends ImmutableDocument implements LightEdge {
   }
 
   public MutableEdge modify() {
-    throw new IllegalStateException("Lightweight edges cannot be modified");
+    final MutableEdge edge = new MutableEdge(database, (EdgeType) type, out, in).save();
+
+    final EdgeLinkedList outList = database.getGraphEngine()
+        .getEdgeHeadChunk((VertexInternal) out.asVertex(), Vertex.DIRECTION.OUT);
+    outList.replaceEdge(rid, edge.getIdentity());
+
+    final EdgeLinkedList inList = database.getGraphEngine().getEdgeHeadChunk((VertexInternal) in.asVertex(), Vertex.DIRECTION.IN);
+    inList.replaceEdge(rid, edge.getIdentity());
+    return edge;
   }
 
   @Override

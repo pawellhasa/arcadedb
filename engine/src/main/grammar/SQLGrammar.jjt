@@ -369,6 +369,8 @@ TOKEN:
   |
   <SYSTEM: ("s"|"S")("y"|"Y")("s"|"S")("t"|"T")("e"|"E")("m"|"M") >
   |
+  <LIGHTWEIGHT: ("l"|"L")("i"|"I")("g"|"G")("h"|"H")("t"|"T")("w"|"W")("e"|"E")("i"|"I")("g"|"G")("t"|"T")("h"|"H") >
+  |
   <UNIDIRECTIONAL: ("u"|"U")("n"|"N")("i"|"I")("d"|"D")("i"|"I")("r"|"R")("e"|"E")("c"|"C")("t"|"T")("i"|"I")("o"|"O")("n"|"N")("a"|"A")("l"|"L") >
   |
   <THIS: "@" ( ("t"|"T")("h"|"H")("i"|"I")("s"|"S") ) >
@@ -1708,7 +1710,7 @@ CreateEdgeStatement CreateEdgeStatement():
   Rid lastRid;
 }
 {
-  <CREATE> <EDGE>
+  <CREATE> [<LIGHTWEIGHT> { jjtThis.lightweight = true; }] <EDGE>
   [ jjtThis.targetType = Identifier() [<BUCKET> jjtThis.targetBucketName = Identifier()]]
   <FROM>
   (

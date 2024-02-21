@@ -33,7 +33,8 @@ import java.util.concurrent.atomic.*;
 
 public class MutableEdgeSegment extends BaseRecord implements EdgeSegment, RecordInternal {
   public static final byte RECORD_TYPE            = 3;
-  public static final int  CONTENT_START_POSITION = Binary.BYTE_SERIALIZED_SIZE + Binary.INT_SERIALIZED_SIZE + BinaryTypes.getTypeSize(BinaryTypes.TYPE_RID);
+  public static final int  CONTENT_START_POSITION =
+      Binary.BYTE_SERIALIZED_SIZE + Binary.INT_SERIALIZED_SIZE + BinaryTypes.getTypeSize(BinaryTypes.TYPE_RID);
   private final       RID  NULL_RID;
 
   private int bufferSize;
@@ -92,7 +93,8 @@ public class MutableEdgeSegment extends BaseRecord implements EdgeSegment, Recor
     if (used + ridSerializedSize <= bufferSize) {
       // APPEND AT THE BEGINNING OF THE CURRENT CHUNK
       buffer.move(CONTENT_START_POSITION, CONTENT_START_POSITION + ridSerializedSize, used - CONTENT_START_POSITION);
-      buffer.putByteArray(CONTENT_START_POSITION, ridSerialized.getContent(), ridSerialized.getContentBeginOffset(), ridSerializedSize);
+      buffer.putByteArray(CONTENT_START_POSITION, ridSerialized.getContent(), ridSerialized.getContentBeginOffset(),
+          ridSerializedSize);
 
       // UPDATE USED BYTES
       buffer.putInt(Binary.BYTE_SERIALIZED_SIZE, used + ridSerializedSize);
@@ -202,13 +204,13 @@ public class MutableEdgeSegment extends BaseRecord implements EdgeSegment, Recor
   }
 
   @Override
-  public int removeEdge(final RID rid) {
+  public int removeEdge(final RID edgeRID) {
     int used = getUsed();
     if (used <= CONTENT_START_POSITION)
       return 0;
 
-    final int bucketId = rid.getBucketId();
-    final long position = rid.getPosition();
+    final int bucketId = edgeRID.getBucketId();
+    final long position = edgeRID.getPosition();
 
     buffer.position(CONTENT_START_POSITION);
 
@@ -237,14 +239,76 @@ public class MutableEdgeSegment extends BaseRecord implements EdgeSegment, Recor
     return found;
   }
 
-  @Override
-  public int removeVertex(final RID rid) {
+  public int replaceEdge(final RID oldEdge, final RID newEdge) {
     int used = getUsed();
     if (used <= CONTENT_START_POSITION)
       return 0;
 
-    final int bucketId = rid.getBucketId();
-    final long position = rid.getPosition();
+    final int bucketId = oldEdge.getBucketId();
+    final long position = oldEdge.getPosition();
+
+    buffer.position(CONTENT_START_POSITION);
+
+    int found = 0;
+    while (buffer.position() < used) {
+      final int lastPos = buffer.position();
+
+      final int currEdgeBucketId = (int) buffer.getNumber();
+      final long currEdgePosition = buffer.getNumber();
+
+      buffer.getNumber();
+      buffer.getNumber();
+
+      if (currEdgeBucketId == bucketId && currEdgePosition == position) {
+        // FOUND: REPLACE THE RID
+        final int oldRidSerializedSize = buffer.position() - lastPos;
+
+        final Binary newRidSerialized = database.getContext().getTemporaryBuffer1();
+        database.getSerializer().serializeValue(database, newRidSerialized, BinaryTypes.TYPE_COMPRESSED_RID, newEdge);
+        final int newRidSerializedSize = newRidSerialized.size();
+
+        final int deltaSize = newRidSerializedSize - oldRidSerializedSize;
+        if (deltaSize > 0) {
+          // BIGGER: MAKE SOME SPACE
+          if (used + deltaSize <= bufferSize)
+            buffer.move(lastPos + oldRidSerializedSize, lastPos + newRidSerializedSize, used - (lastPos + oldRidSerializedSize));
+          else
+            // NO SPACE, TRY TO USE THE NEXT SEGMENT
+            return -1;
+
+        } else if (deltaSize < 0) {
+          // SHORTER: SHIFT LEFT UNUSED
+          buffer.move(lastPos + oldRidSerializedSize, lastPos + newRidSerializedSize, used - (lastPos + oldRidSerializedSize));
+        }
+
+        buffer.putByteArray(lastPos, newRidSerialized.getContent(), newRidSerialized.getContentBeginOffset(),
+            newRidSerializedSize);
+
+        if (deltaSize != 0)
+          // UPDATE USED BYTES WITH THE DIFFERENCE
+          buffer.putInt(Binary.BYTE_SERIALIZED_SIZE, used + deltaSize);
+
+        buffer.move(buffer.position(), lastPos, used - buffer.position());
+
+        used -= (buffer.position() - lastPos);
+        setUsed(used);
+
+        buffer.position(lastPos);
+        ++found;
+      }
+    }
+
+    return found;
+  }
+
+  @Override
+  public int removeVertex(final RID vertexRID) {
+    int used = getUsed();
+    if (used <= CONTENT_START_POSITION)
+      return 0;
+
+    final int bucketId = vertexRID.getBucketId();
+    final long position = vertexRID.getPosition();
 
     buffer.position(CONTENT_START_POSITION);
 
@@ -339,7 +403,8 @@ public class MutableEdgeSegment extends BaseRecord implements EdgeSegment, Recor
   @Override
   public RID getRID(final AtomicInteger currentPosition) {
     buffer.position(currentPosition.get());
-    final RID next = (RID) database.getSerializer().deserializeValue(database, buffer, BinaryTypes.TYPE_COMPRESSED_RID, null); // NEXT
+    final RID next = (RID) database.getSerializer()
+        .deserializeValue(database, buffer, BinaryTypes.TYPE_COMPRESSED_RID, null); // NEXT
     currentPosition.set(buffer.position());
     return next;
   }
